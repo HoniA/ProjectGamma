@@ -104,11 +104,11 @@ void policy::init(int numCities)
 	// randomly shuffle all cities but keep first one in same position
 	random_shuffle(P.begin() + 1, P.end());
 
-	for (int i = 0; i < P.size(); i++)
+	/*for (int i = 0; i < P.size(); i++)
 	{
 		cout << P.at(i) << " ";
 	}
-	cout << endl;
+	cout << endl;*/
 	assert(P.size() == numCities); // check that policy has same size as total number of cities
 	assert(*P.begin() == 0); // check that every policy starts at the first city
 	// previous asserts fulfill test that agent has set of policies that represent its path
@@ -158,13 +158,37 @@ int main()
 	vector<policy> population;
 
 	population = EA_init(numCities, popSize);
+	assert(population.size() == popSize / 2);
+
+	for (int k = 0; k < popSize / 2; k++)
+	{
+		for (int l = 0; l < numCities; l++)
+		{
+			cout << population.at(k).P.at(l) << " ";
+		}
+		cout << endl;
+	}
 
 	population = EA_replicate(population, popSize, numCities, S, citySet);
+	assert(population.size() == popSize);
 
-	// EA_eval()
+	cout << "Replicated" << endl;
+	for (int k = 0; k < popSize; k++)
+	{
+		for (int l = 0; l < numCities; l++)
+		{
+			cout << population.at(k).P.at(l) << " ";
+		}
+		cout << endl;
+	}
+
+	population = EA_eval(population, popSize, numCities, S, citySet);
+	assert(population.size() == popSize);
+
 	population = EA_downselect(population, popSize);
 	assert(population.size() == popSize / 2);
 
+	cout << "Downselected " << endl;
 	for (int k = 0; k < popSize / 2; k++)
 	{
 		for (int l = 0; l < numCities; l++)
@@ -254,6 +278,7 @@ vector<policy> EA_eval(vector<policy> P, int popSize, int numCities, salesman S,
 vector<policy> EA_downselect(vector<policy> P, int popSize)
 {
 	vector<policy> population;
+	assert(population.size() == 0);
 
 	// binary tournament
 	// halving size of vector
@@ -261,14 +286,16 @@ vector<policy> EA_downselect(vector<policy> P, int popSize)
 	// compare two random spots in population, send lower fitness to downselected population
 	while (population.size() != popSize / 2)
 	{
-		int index = rand() % popSize;
-		int index2 = rand() % popSize;
-
+		int index = rand() % (popSize);
+		int index2 = rand() % (popSize);
+		
 		// assure that index2 is not the same as index
-		while (index = index2)
+		while (index == index2)
 		{
 			index2 = rand() % popSize;
 		}
+
+		cout << "Index 1: " << index << " Index 2: " << index2 << endl;
 
 		if (P.at(index).fitness < P.at(index2).fitness)
 		{

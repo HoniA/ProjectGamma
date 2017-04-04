@@ -73,17 +73,21 @@ void salesman::update(vector<int> policy, vector<city> citySet)
 {
 	//pythagorean theorem for distance to next city
 	//keeping running total of distance until policy is completed
+	distance = 0;
 	for (int i = 0; i < policy.size(); i++)
 	{
 		city newCity;
 		newCity = citySet.at(policy.at(i));
-		distance = distance + sqrt(pow((abs(xpos - newCity.xpos)), 2) + pow(abs((ypos - newCity.ypos)), 2));
+		distance = distance + sqrt(pow((xpos - newCity.xpos), 2) + pow((ypos - newCity.ypos), 2));
+		//cout << distance << endl;
 		assert(distance >= 0); // fulfills test that program is calculating distance between two cities (LR.7)
 		fitness = distance;
 		//reset salesman's positions to chosen city
 		xpos = newCity.xpos;
 		ypos = newCity.ypos;
 	}
+	xpos = citySet.at(0).xpos;
+	ypos = citySet.at(0).ypos;
 }
 
 class policy {
@@ -132,20 +136,36 @@ int main()
 	srand(time(NULL));
 	ofstream fout;
 
-	int numCities = 25;
-	int popSize = 10;
+	int numCities = 10;
+	int popSize = 150;
 
 	// creat vector of cities
 	vector<city> citySet;
 
-	// initialize cities and put them into vector
-	for (int i = 0; i < numCities; i++)
+	// initialize cities and put them into vector 
+	// for only ten cities, hardcode where cities are in order to verify that EA works
+	
+	if (numCities == 10)
 	{
-		city c;
-		c.init();
-		citySet.push_back(c);
-		assert(c.xpos >= 0 && c.xpos <= xmax); // ensures city is within bounds. 
-		assert(c.ypos >= 0 && c.ypos <= ymax); //fulfills test that program can represent a city (LR.1)
+		for (int i = 0; i < numCities; i++)
+		{
+			city c;
+			c.xpos = 5*i;
+			c.ypos = 5*i;
+			citySet.push_back(c); //would make optimal distance 9*sqrt(50) ~ 63.6
+		}
+	}
+
+	else
+	{
+		for (int i = 0; i < numCities; i++)
+		{
+			city c;
+			c.init();
+			citySet.push_back(c);
+			assert(c.xpos >= 0 && c.xpos <= xmax); // ensures city is within bounds. 
+			assert(c.ypos >= 0 && c.ypos <= ymax); //fulfills test that program can represent a city (LR.1)
+		}
 	}
 
 	// check if size of vector is the same as the number of cities needed
@@ -154,6 +174,7 @@ int main()
 	// create salesman
 	salesman S;
 	S.init(citySet);
+	assert(S.xpos == citySet.at(0).xpos && S.ypos == citySet.at(0).ypos);
 
 	assert(S.xpos == citySet[0].xpos && S.ypos == citySet[0].ypos); //checks to see if agent is in first city
 	//fulfills test that program can represent an agent (LR.2)
@@ -163,7 +184,7 @@ int main()
 	population = EA_init(numCities, popSize);
 	assert(population.size() == popSize / 2); //fulfills test that program can initiate population of policies (MR.1)
 
-	int numGenerations = 300;
+	int numGenerations = 1000;
 
 	fout.clear();
 	fout.open("LearningCurve.txt");
@@ -173,11 +194,30 @@ int main()
 		population = EA_replicate(population, popSize, numCities, S, citySet);
 		assert(population.size() == popSize); // fulfills test that population is back at max capacity with mutated copies (MR.5)
 
+		for (int i = 0; i < popSize; i++)
+		{
+			assert(population.at(i).P.at(0) == 0); // fulfills test that agent always starts in same city (LR.5)
+
+			for (int j = 0; j < numCities; j++)
+			{
+				for (int k = j+1; k < numCities; k++)
+				{
+					assert(population.at(i).P.at(j) != population.at(i).P.at(k)); // fullfills test that agent never visits same city twice (LR_6)
+					// Sierra Gonzales' idea/help
+				}
+			}
+		}
+
 		population = EA_eval(population, popSize, numCities, S, citySet);
 		assert(population.size() == popSize);
 
 		population = EA_downselect(population, popSize);
 		assert(population.size() == popSize / 2);
+
+		for (int i = 0; i < popSize/2; i++)
+		{
+			assert(population.at(i).P.at(0) == 0); // fulfills test that agent always starts in same city (LR.5)
+		}
 
 		fout << "Generation:" << "\t" << gen + 1 << "\t" << "Fitnesses: " << "\t";
 		for (int policy = 0; policy < popSize / 2; policy++)
@@ -229,11 +269,15 @@ vector<policy> EA_replicate(vector<policy> P, int popSize, int numCities, salesm
 		
 		int index2;
 		int index3;
+		int index4;
 
 		// mutation process
-		// swap two cities in policy
+		// swap three cities in policy
+		// chose to swap three instead of two cities for faster learning curve only if the number of cities is larger than ten
+		// for fewer number of cities, more swaps leads to too much randomness
 		index2 = rand() % (numCities-1) + 1; //gets number between one and the maximum number of cities
 		index3 = rand() % (numCities-1) + 1; //ensures that the first city is never mutated, so salesman always starts at same city 
+		index4 = rand() % (numCities - 1) + 1;
 		
 		while (index2 == index3)
 		{
@@ -246,6 +290,20 @@ vector<policy> EA_replicate(vector<policy> P, int popSize, int numCities, salesm
 		temp = pol.P.at(index2);
 		pol.P.at(index2) = pol.P.at(index3);
 		pol.P.at(index3) = temp;
+
+		if (numCities > 10)
+		{
+			while (index3 == index4 || index2 == index4)
+			{
+				index4 = rand() % (numCities - 1) + 1;
+			}
+
+			assert(index3 != 0 && index4 != 0); // fulfills test that agent always starts in same city (LR.5)
+
+			temp = pol.P.at(index3);
+			pol.P.at(index3) = pol.P.at(index4);
+			pol.P.at(index4) = temp;
+		}
 
 		population.push_back(pol);
 		assert(population.at(index).P != pol.P); //fulfills test that a policy is mutated by the program
@@ -271,7 +329,7 @@ vector<policy> EA_eval(vector<policy> P, int popSize, int numCities, salesman S,
 		//assert(population.at(i).fitness == -1); //ensures that initial fitness is at default value (-1)
 
 		S.update(population.at(i).P, citySet);
-		assert(S.distance >= 100); //fulfills test that program can calculate total distance in policy (minimum dist is 100 because 100x100 grid) (LR.8)
+		assert(S.distance >= numCities); //fulfills test that program can calculate total distance in policy (minimum dist is the number of cities (i.e. all cities are next to each other) (LR.8)
 
 		population.at(i).fitness = S.fitness;
 		assert(population.at(i).fitness != -1); //fulfills test that program can set fitness of policy based on distance (MR.2)
